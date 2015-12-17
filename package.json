@@ -7,7 +7,6 @@
     "socket.io": "1.2.0",
     "fs": "*",
     "wav": "*",
-    "binaryjs": "*",
     "path": "*"
   }
 }

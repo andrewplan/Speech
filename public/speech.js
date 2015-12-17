@@ -1,6 +1,4 @@
 var socket = io();
-var client = new BinaryClient('ws://localhost:3001');
-
 $('form').submit(function(){
     socket.emit('chat message', $('#m').val());
     $('#m').val('');
@@ -8,10 +6,8 @@ $('form').submit(function(){
 });
 
 $( "#music-button" ).click(function() {
-    window.Stream = client.createStream();
-
+    socket.emit('init', 'stream.wav');
     console.log("Stream opened");
-
     if (!navigator.getUserMedia)
         navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia ||
             navigator.mozGetUserMedia || navigator.msGetUserMedia;
@@ -36,7 +32,7 @@ $( "#music-button" ).click(function() {
     };
     function recorderProcess(e) {
         var left = e.inputBuffer.getChannelData(0);
-        window.Stream.write(convertFloat32ToInt16(left));
+        socket.emit('record',convertFloat32ToInt16(left));
     };
     function convertFloat32ToInt16(buffer) {
         l = buffer.length;
@@ -49,9 +45,7 @@ $( "#music-button" ).click(function() {
 });
 
 $( "#stop-button" ).click(function() {
-    window.Stream.end();
-});
-socket.on('chat message', function(msg){
-    $('#messages').append($('<li>').text(msg));
+    socket.emit('close');
+    socket.close();
 });
 
