@@ -1,12 +1,10 @@
 {
-  "name": "socket-chat-example",
+  "name": "Speech",
   "version": "0.0.1",
-  "description": "my first socket.io app",
+  "description": "Web recorded speech analytics",
   "dependencies": {
     "express": "4.10.2",
     "socket.io": "1.2.0",
-    "fs": "*",
-    "wav": "*",
-    "path": "*"
+    "wav": "*"
   }
 }
