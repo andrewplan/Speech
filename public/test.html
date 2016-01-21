@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en-us">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width">
+        <title>Speech</title>
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.5.0/css/font-awesome.min.css">
+        <link href="css/bootstrap.css" rel="stylesheet">
+        <link href="css/style.css" rel="stylesheet">
+    </head>
+
+    <body ng-app="Speech">
+        <div class="mainDiv" ng-controller="SpeechController as sp">
+        <div id="side" class="gn">
+            <div class="rc">
+                <div class="text-center">
+                    <h3>Listen to <span class="badge">{{sp.rooms.length}}</span></h3>
+                </div>
+                <div>
+                    <ul>
+                        <li ng-repeat="room in sp.rooms">
+                            <b>
+                                <a href="#" ng-click="sp.joinRoom(room)">
+                                    <i class="fa fa-bullhorn"></i> {{room}}
+                                </a>
+                            </b>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        <div id="main" class="gz" >
+            <div class="canvasDiv">
+                <canvas class="visualizer" height="200"></canvas> 
+            </div>
+            <div class="controlDiv">
+                <div class="text-center" ng-if="!sp.recording">
+                    <h3>Start Broadcasting</h3>
+                    <div class="paddedDiv">
+                        <input type="text" class="style-4"
+                            placeholder="Title" ng-model="sp.title" required />
+                        <input type="checkbox" id="record" name="check" 
+                                                           value="record" checked>
+                        <label for="record">Record</label>
+                    </div>
+                    <i ng-click="sp.startRecord()" 
+                        class="clickable fa fa-play-circle-o fa-5x"></i>
+                </div>
+                <div class="text-center" ng-if="sp.recording">
+                    <h3>Stop Broadcasting</h3>
+                    <div class="paddedDiv">
+                        <b>{{sp.title}}</b>
+                    </div>
+                    <i ng-click="sp.stopRecord()" 
+                        class="clickable fa fa-stop-circle-o fa-5x"></i>
+                </div>
+            </div>
+        </div>
+        </div>
+      
+        <script src="https://cdn.socket.io/socket.io-1.2.0.js"></script>
+        <script src="lib/angular.min.js"></script>
+        <script src="main.js"></script>
+    </body>
+</html>

@@ -31,8 +31,10 @@ $( "#music-button" ).click(function() {
         recorder.connect(audioContex.destination);
     };
     function recorderProcess(e) {
-        var left = e.inputBuffer.getChannelData(0);
-        socket.emit('record',convertFloat32ToInt16(left));
+        if(recording){
+            var left = e.inputBuffer.getChannelData(0);
+            socket.emit('record',convertFloat32ToInt16(left));
+        }
     };
     function convertFloat32ToInt16(buffer) {
         l = buffer.length;

@@ -1,42 +1,117 @@
 var express = require('express');
 var app = express();
 var fs = require('fs');
+var path = require('path');
 var wav = require('wav');
 var http = require('http').Server(app);
 var io = require('socket.io')(http);
 
-app.use(express.static(__dirname + '/public'));
-app.get('/', function(req, res){
-  res.sendFile('/index.html');
+app.get("/", function(req, res) {
+    res.sendFile(path.join(__dirname, '/public', 'test.html'));
 });
 
+app.use('/',express.static("public"));
+
+var streams = [];
 io.on('connection', function(socket){
-    var outFile="test.wav";
-    var fileWriter = new wav.FileWriter(outFile, {
-        channels: 1,
-        sampleRate: 46000,
-        bitDepth: 16
+    var rooms = [];
+    console.log('>>> Connection'+' ('+io.engine.clientsCount+')');
+    rooms = findRooms();
+    io.sockets.emit('rooms', rooms);
+
+    socket.on('createRoom', function(name){
+        socket.join(name);
+        rooms = findRooms();
+        io.sockets.emit('rooms', rooms);
     });
+
+    socket.on('joinRoom', function(name){
+        console.log(">>> User joined room "+name);
+        socket.join(name);
+    });
+
     socket.on('init', function(name){
-        fileWriter = new wav.FileWriter(name, {
+        var streamTemp = {};
+        streamTemp.mood = 'warm';
+        streamTemp.wav = new wav.FileWriter('out/'+name+'.wav', {
             channels: 1,
-            sampleRate: 46000,
+            sampleRate: 47000,
             bitDepth: 16
         });
-        console.log('init');
+        streamTemp.name = name;
+        streams.push(streamTemp);
+        console.log('>>> Initialized (mood, wav): '+name);
     });
-    socket.on('record', function(data){
-        //console.log(data.length);
-        fileWriter.write(data);
-    });
-    socket.on('close', function(){
-        console.log('Close');
-        fileWriter.end();
+    socket.on('log', function(data, name){
+        var sum = 0
+        for(var i in data){
+            sum += data[0];
+        }
+        var avg = sum/i;
+        var stream;
+        for (var obj in streams){
+            if (streams[obj].name === name) {
+                stream = streams[obj];
+                break;
+            }
+        }
+        //stream.log.write(avg+'\n');
     });
 
+    var i = 1
+    socket.on('record', function(data, name){
+        socket.broadcast.to(name).emit('play', data);
+        process.stdout.write('Recording');
+        i%3 == 0 ? process.stdout.write(".  \r") :
+        i%2 == 0 ? process.stdout.write(".. \r") :
+        process.stdout.write("...\r");
+        var stream;
+        for (var obj in streams){
+            if (streams[obj].name === name) {
+                stream=streams[obj];
+                break;
+            }
+        }
+        stream.wav.write(data);
+        i++;
+    });
+    socket.on('close', function(name){
+        setTimeout(function(){
+            console.log('>>> Close (log, recording): '+name);
+            var stream;
+            for (var obj in streams){
+                if (streams[obj].name === name) {
+                    stream=streams[obj];
+                    break;
+                }
+            }
+            //stream.log.end();
+            stream.wav.end();
+            socket.leave(name);
+            rooms = findRooms();
+            io.sockets.emit('rooms', rooms);
+        }
+        , 1000);
+    });
+    socket.on('disconnect', function () {
+        rooms = findRooms();
+        io.sockets.emit('rooms', rooms);
+    });
 });
 
-http.listen(3000, function(){
-  console.log('listening on localhost:3000');
+http.listen(4000, function(){
+  console.log('listening on localhost:4000');
 });
 
+function findRooms() {
+    var availableRooms = [];
+    var rooms = io.sockets.adapter.rooms;
+    if (rooms) {
+        for (var room in rooms) {
+            if (!rooms[room].hasOwnProperty(room)) {
+                availableRooms.push(room);
+            }
+        }
+    }
+    return availableRooms;
+}
