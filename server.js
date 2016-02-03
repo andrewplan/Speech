@@ -1,10 +1,15 @@
-var express = require('express');
-var app = express();
-var fs = require('fs');
-var path = require('path');
-var wav = require('wav');
-var http = require('http').Server(app);
-var io = require('socket.io')(http);
+var express     = require('express');
+var app         = express();
+var fs          = require('fs');
+var path        = require('path');
+var wav         = require('wav');
+var http        = require('http').Server(app);
+var io          = require('socket.io')(http);
+
+var streams = [];
+var rooms = [];
+var port = 4000;
+var ip = "0.0.0.0";
 
 app.get("/", function(req, res) {
     res.sendFile(path.join(__dirname, '/public', 'test.html'));
@@ -12,9 +17,7 @@ app.get("/", function(req, res) {
 
 app.use('/',express.static("public"));
 
-var streams = [];
 io.on('connection', function(socket){
-    var rooms = [];
     console.log('>>> Connection'+' ('+io.engine.clientsCount+')');
     rooms = findRooms();
     io.sockets.emit('rooms', rooms);
@@ -30,18 +33,19 @@ io.on('connection', function(socket){
         socket.join(name);
     });
 
-    socket.on('init', function(name){
+    socket.on('init', function(name, sample_rate){
         var streamTemp = {};
         streamTemp.mood = 'warm';
         streamTemp.wav = new wav.FileWriter('out/'+name+'.wav', {
             channels: 1,
-            sampleRate: 47000,
+            sampleRate: sample_rate,
             bitDepth: 16
         });
         streamTemp.name = name;
         streams.push(streamTemp);
         console.log('>>> Initialized (mood, wav): '+name);
     });
+
     socket.on('log', function(data, name){
         var sum = 0
         for(var i in data){
@@ -60,7 +64,7 @@ io.on('connection', function(socket){
 
     var i = 1
     socket.on('record', function(data, name){
-        socket.broadcast.to(name).emit('play', data);
+        socket.broadcast.to(name).emit('stream_chunk', data);
         process.stdout.write('Recording');
         i%3 == 0 ? process.stdout.write(".  \r") :
         i%2 == 0 ? process.stdout.write(".. \r") :
@@ -75,6 +79,7 @@ io.on('connection', function(socket){
         stream.wav.write(data);
         i++;
     });
+    
     socket.on('close', function(name){
         setTimeout(function(){
             console.log('>>> Close (log, recording): '+name);
@@ -93,14 +98,15 @@ io.on('connection', function(socket){
         }
         , 1000);
     });
+
     socket.on('disconnect', function () {
         rooms = findRooms();
         io.sockets.emit('rooms', rooms);
     });
 });
 
-http.listen(4000, function(){
-  console.log('listening on localhost:4000');
+http.listen(port, ip, function(){
+  console.log('listening on '+ip+':'+port);
 });
 
 function findRooms() {

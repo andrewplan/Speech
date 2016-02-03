@@ -1,12 +1,15 @@
 var socket = io();
-
 var app = angular.module("Speech",[]);
 
 app.controller('SpeechController', function($scope, $window){
     var sp = this;
+
     sp.title=null;
     sp.rooms=[];
+    sp.saveRecording = true;
+
     sp.recording=false;
+    sp.listening=false;
 
     sp.joinRoom = function(name){
         console.log('Joining room');
@@ -18,20 +21,40 @@ app.controller('SpeechController', function($scope, $window){
         $scope.$apply();
     });
 
-    socket.on('play',function(data){
-        playAudio(data)
+    window.AudioContext = window.AudioContext || window.webkitAudioContext;
+    var context = new AudioContext();
+
+    socket.on('stream_chunk',function(data){
+        addToBuffer(data)
     })
 
-    function playAudio(buffer) {
-        window.AudioContext = window.AudioContext || window.webkitAudioContext;
-        var context = new AudioContext();
+    var tempBuffer = [];
+    var bufferWindow = 10;
+    var bufferSize = 512;
+    var startTime = context.currentTime;
+    function addToBuffer(data){
+        var array = new Int16Array(data);
+        l = array.length;
+        while (l--){
+            tempBuffer.push(array[l]/0x7FFF);
+        }
+        if(tempBuffer.length % (bufferSize * bufferWindow) === 0){
+            console.log('play!');
+            playAudio(tempBuffer);
+            tempBuffer = [];
+        }
+    };
 
+    function playAudio(buffer) {
+        var playableSample = new Float32Array(buffer);
         source2 = context.createBufferSource();
-        audioBuffer2 = context.createBuffer( 1, 2048, context.sampleRate );
-        audioBuffer2.getChannelData(0).set(convertInt16ToFloat32(buffer));
+        audioBuffer2 = context.createBuffer( 1, bufferSize*bufferWindow, 
+                context.sampleRate );
+        audioBuffer2.getChannelData(0).set(playableSample);
         source2.buffer = audioBuffer2;
         source2.connect(context.destination);
-        source2.start(0);
+        source2.start(startTime);
+        startTime += audioBuffer2.duration;
     }
 
     socket.on('count', function(count){
@@ -65,20 +88,21 @@ app.controller('SpeechController', function($scope, $window){
     var localStream;
 
     this.startRecord = function(){
-        if(sp.title){
+        if(sp.title && !sp.listening){
             socket.emit('createRoom', sp.title);
-            this.recording=true;
+            sp.recording=true;
             if (navigator.getUserMedia) {
-                socket.emit('init', sp.title);
+                if (sp.saveRecording) socket.emit('init', sp.title);
                 navigator.getUserMedia ( { audio: true }, function(stream) {
                     localStream = stream;
                     source = audioCtx.createMediaStreamSource(stream);
                     source.connect(analyser);
-                    var bufferSize = 2048;
+                    var bufferSize = 512;
                     recorder = audioCtx.createScriptProcessor(bufferSize, 1, 1);
-                    recorder.onaudioprocess = recorderProcess;
                     source.connect(recorder);
-                    recorder.connect(audioCtx.destination);
+                    if(sp.saveRecording){
+                        recorder.onaudioprocess = recorderProcess;
+                    }
                     visualize();
                 },
                 function(err) {
@@ -96,7 +120,7 @@ app.controller('SpeechController', function($scope, $window){
 
     this.stopRecord = function(){
         this.recording=false;
-        socket.emit('close', sp.title);
+        if(sp.saveRecording) socket.emit('close', sp.title);
         localStream.stop();
         recorder.onaudioprocess = null;
         window.cancelAnimationFrame(drawVisual);
@@ -104,7 +128,8 @@ app.controller('SpeechController', function($scope, $window){
 
     function recorderProcess(e) {
             var left = e.inputBuffer.getChannelData(0);
-            socket.emit('record',convertFloat32ToInt16(left), sp.title);
+            socket.emit('record',convertFloat32ToInt16(left), 
+                    sp.title, audioCtx.sample_rate);
     };
 
     function convertFloat32ToInt16(buffer) {

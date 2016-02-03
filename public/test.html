@@ -39,8 +39,9 @@
                     <div class="paddedDiv">
                         <input type="text" class="style-4"
                             placeholder="Title" ng-model="sp.title" required />
-                        <input type="checkbox" id="record" name="check" 
-                                                           value="record" checked>
+                        <input type="checkbox" 
+                               id="record" name="check" 
+                               ng-model="sp.saveRecording">
                         <label for="record">Record</label>
                     </div>
                     <i ng-click="sp.startRecord()" 
